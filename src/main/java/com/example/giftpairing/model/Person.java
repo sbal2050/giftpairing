@@ -7,13 +7,11 @@ public class Person {
 	
 	private UUID id;
 	private String name;
-	private boolean assigned;
 	
 	public Person(String name) {
 		super();
 		this.id = UUID.randomUUID();
 		this.name = name;
-		this.assigned = false;
 	}
 	
 	public UUID getId() {
@@ -27,18 +25,9 @@ public class Person {
 	public String getName() {
 		return name;
 	}
-	
-	public boolean isAssigned() {
-		return assigned;
-	}
-
-	public void setAssigned(boolean assigned) {
-		this.assigned = assigned;
-	}
 
 	@Override
 	public String toString() {
-		return "[Name=" + name + "]";
+		return "Donor {id : " + id + ", name : " + name + "}";
 	}
-	
 }

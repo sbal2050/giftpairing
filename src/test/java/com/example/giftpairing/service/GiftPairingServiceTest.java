@@ -1,6 +1,7 @@
 package com.example.giftpairing.service;
 
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Map;
@@ -65,10 +66,8 @@ public class GiftPairingServiceTest {
 	public void testGetGiftingPairsForEvenSizeList() {
 		family = giftingPairService.createDefaultFamily();
 		assertTrue(family.getMembers().size() %2 == 0);
-		giftingPairService.getGiftingPairs(family.getFamilyId());
-		family.getMembers().forEach(m -> {
-			assertTrue(m.isAssigned());
-		});
+		Map<Person, Person> pairs = giftingPairService.getGiftingPairs(family.getFamilyId());
+		assertEquals(family.getMembers().size(), pairs.size());
 	}
 	
 	@Test
@@ -77,9 +76,7 @@ public class GiftPairingServiceTest {
 		Family family = giftingPairService.createFamily(p);
 		giftingPairService.addMember(family.getFamilyId(), new Person("Cocoa Girl"));
 		giftingPairService.addMember(family.getFamilyId(), new Person("Judy Moody"));
-		giftingPairService.getGiftingPairs(family.getFamilyId());
-		family.getMembers().forEach(m -> {
-			assertTrue(m.isAssigned());
-		});
+		Map<Person, Person> pairs = giftingPairService.getGiftingPairs(family.getFamilyId());
+		assertEquals(family.getMembers().size(), pairs.size());
 	}
 }

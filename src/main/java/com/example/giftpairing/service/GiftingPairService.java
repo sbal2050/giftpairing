@@ -154,9 +154,7 @@ public class GiftingPairService implements IGiftingPairService {
 
 		for(int i = 0, j = 1;i < size && j <=size; i++, j++) {
 			donor = family.get(i);
-			receiver = family.get(j);
 			receiver = i == (size - 1) ? family.get(0) : family.get(j);
-			receiver.setAssigned(true);
 			pairs.put(donor, receiver);
 		}
 		return pairs;
