@@ -33,5 +33,4 @@ public class Family {
 	public boolean removeMember(Person member) {
 		return members.remove(member);
 	}
-
 }

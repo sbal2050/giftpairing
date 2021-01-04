@@ -1,17 +1,21 @@
 package com.example.giftpairing.service;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.springframework.lang.NonNull;
+import javax.annotation.PostConstruct;
+
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -19,6 +23,8 @@ import com.example.giftpairing.error.ErrorCode;
 import com.example.giftpairing.error.GiftPairingException;
 import com.example.giftpairing.model.Family;
 import com.example.giftpairing.model.Person;
+import com.example.giftpairing.model.Relation;
+import com.example.giftpairing.model.RelationShip;
 
 
 /**
@@ -29,23 +35,47 @@ import com.example.giftpairing.model.Person;
 public class GiftingPairService implements IGiftingPairService {
 	
 	//Creating an in-memory default family list
-	private static Family family;
+	private static Family family = new Family();
+	private static Person david = new Person("David Letterman"); 
+	private static Person tom = new Person("Thomas Letterman"); 
+	private static Person susan = new Person("Susan Letterman"); 
+	private static Person mary = new Person("Mary Letterman");
+	private static Person charlie = new Person("Charlie Letterman");
+	private static Person jenny = new Person("Jenifer Letterman");
+	private static Person john = new Person("John Hamilton");
+	private static Person kim = new Person("Kimberly Letterman");
+	private static Person lori = new Person("Lori Hamilton");
+	private static Person jack = new Person("Jack Hamilton");
 	static {
+		family.addMember(david);
+		family.addMember(tom);
+		family.addMember(susan);
+		family.addMember(mary);
+		family.addMember(charlie);
+		family.addMember(jenny);
+		family.addMember(john);
+		family.addMember(kim);
+		family.addMember(lori);
+		family.addMember(jack);
 		
-		family = new Family();
-		family.addMember(new Person("David Letterman"));
-		family.addMember(new Person("Susan Letterman"));
-		family.addMember(new Person("Thomas Letterman"));
-		family.addMember(new Person("Mary Letterman"));
-		family.addMember(new Person("Charlie Letterman"));
-		family.addMember(new Person("Jenifer Letterman"));
-		family.addMember(new Person("John Hamilton"));
-		family.addMember(new Person("Kimberly Letterman"));
-		family.addMember(new Person("Lori Hamilton"));
-		family.addMember(new Person("Jack Hamilton"));
+		addRelationShip(david, tom, Relation.SIBLING);
+		addRelationShip(david, susan, Relation.SPOUSE);
+		addRelationShip(charlie, david, Relation.CHILD);
+		addRelationShip(charlie, susan, Relation.CHILD);
+		addRelationShip(tom, mary, Relation.SPOUSE);
+		addRelationShip(jenny, tom, Relation.PARENT);
+		addRelationShip(jenny, mary, Relation.PARENT);
+		addRelationShip(kim, tom, Relation.PARENT);
+		addRelationShip(kim, mary, Relation.PARENT);
+		addRelationShip(jenny, kim, Relation.SIBLING);
 		
+		addRelationShip(jenny, john, Relation.SPOUSE);
+		addRelationShip(lori, john, Relation.PARENT);
+		addRelationShip(lori, jenny, Relation.PARENT);
+		addRelationShip(jack, john, Relation.PARENT);
+		addRelationShip(jack, jenny, Relation.PARENT);
+		addRelationShip(jack, lori, Relation.SIBLING);
 	}
-	
 	private List<Family> families;
 	private Set<Person> members;
 	
@@ -112,31 +142,58 @@ public class GiftingPairService implements IGiftingPairService {
 				() -> { throw new GiftPairingException("Family does not exist", ErrorCode.FAMILY_NOT_FOUND);}
 			);	
 	}
+	
+	@Override
+	public void addRelationShips(Person person, Person relative, Relation relation) {		
+		person.addRelationShip(new RelationShip(relative, relation));
+		relative.addRelationShip(new RelationShip(person,relation.reverseRelation()));				
+	}
+	
+	
+	private static void addRelationShip(Person person, Person relative, Relation relation) {		
+		person.addRelationShip(new RelationShip(relative, relation));
+		relative.addRelationShip(new RelationShip(person,relation.reverseRelation()));				
+	}
+	
 	/**
 	 * Pairs members of a family to give gift to each other.
 	 * Throws exception if lookup could not find the family, or family has no member or less than two members.
 	 */
 	@Override
 	public Map<Person, Person> getGiftingPairs(UUID familyId) {
-		List<Person> members = getFamilyMembers(familyId);
-		
-		if(CollectionUtils.isEmpty(members) || members.size()<2) {
-			throw new GiftPairingException("Family does not have enough members to exchange gifts", ErrorCode.ZERO_MEMBERS);
-		}
-		//This randomizes the list and ensures the pair are repeated less frequently
-		Collections.shuffle(members); 
-		
+		List<Person> members = randomizeOptions(familyId); 
 		return getGiftingPairs(members);
 	}
 	
-	private List<Person> getFamilyMembers(UUID familyId) {
-		families.stream().filter(f -> f.getFamilyId().equals(familyId)).findAny().ifPresentOrElse( 
-				f -> { members = f.getMembers();},  
-				() -> { throw new GiftPairingException("Family does not exist", ErrorCode.FAMILY_NOT_FOUND);}
-				);	
-		return CollectionUtils.isEmpty(members)? Collections.emptyList() : members.stream().collect(Collectors.toList());
+	@Override
+	public Map<String, List<String>> getGiftingPairsWithinImmediateFamily(UUID familyId) {
+		
+		List<Person> familyMembers = randomizeOptions(familyId);
+		Queue<Person> queue = new LinkedList<>(familyMembers);
+		Map<String, List<String>> giftDonorRecipientList = new HashMap<>();
+		List<String> recipients;
+		EnumSet<Relation> relatives = EnumSet.of(Relation.CHILD, Relation.PARENT, Relation.SPOUSE);
+		while(!queue.isEmpty()) {
+			Person donor = queue.remove();
+
+			recipients = new ArrayList<>();
+			
+			List<Person> immediateFamily = getImmediateFamilyMembers(donor.getRelationShips(), r -> relatives.contains(r));
+			for(Person m :immediateFamily) {
+				if(!m.isAssigned()) {
+					m.setAssigned(true);
+					recipients.add(m.getName());
+				}
+			}
+			giftDonorRecipientList.put(donor.getName(), recipients);
+		}
+		giftDonorRecipientList.forEach((k,v) -> {
+			System.out.println(k + " : " + v);
+		});
+		
+		return giftDonorRecipientList;
 	}
-	
+
 	/**
 	 * 
 	 * @param family 
@@ -159,4 +216,36 @@ public class GiftingPairService implements IGiftingPairService {
 		}
 		return pairs;
 	}
+
+	private List<Person> randomizeOptions(UUID familyId) {
+		List<Person> members = getFamilyMembers(familyId);
+		
+		if(CollectionUtils.isEmpty(members) || members.size()<2) {
+			throw new GiftPairingException("Family does not have enough members to exchange gifts", ErrorCode.ZERO_MEMBERS);
+		}
+		//This randomizes the list and ensures the pair are repeated less frequently
+		Collections.shuffle(members);
+		return members;
+	}
+	
+	
+	private List<Person> getFamilyMembers(UUID familyId) {
+		families.stream().filter(f -> f.getFamilyId().equals(familyId)).findAny().ifPresentOrElse( 
+				f -> { members = f.getMembers();},  
+				() -> { throw new GiftPairingException("Family does not exist", ErrorCode.FAMILY_NOT_FOUND);}
+				);	
+		return CollectionUtils.isEmpty(members)? Collections.emptyList() : members.stream().collect(Collectors.toList());
+	}
+	
+	private List<Person> getImmediateFamilyMembers(List<RelationShip> relationShips, Predicate<Relation> predicate) {
+		return relationShips.stream().filter(r -> predicate.test(r.getRelation()))
+				.map(RelationShip :: getRelative)
+				.collect(Collectors.toList());
+	}
+	
+	public void resetAssignment(UUID familyId) {
+		List<Person> members = getFamilyMembers(familyId);
+		for(Person m : members) {m.setAssigned(false);}
+	}
+	
 }

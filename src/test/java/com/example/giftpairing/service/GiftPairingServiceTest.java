@@ -2,9 +2,12 @@ package com.example.giftpairing.service;
 
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.Before;
@@ -68,6 +71,7 @@ public class GiftPairingServiceTest {
 		assertTrue(family.getMembers().size() %2 == 0);
 		Map<Person, Person> pairs = giftingPairService.getGiftingPairs(family.getFamilyId());
 		assertEquals(family.getMembers().size(), pairs.size());
+		checkSelfPairing(pairs);
 	}
 	
 	@Test
@@ -78,5 +82,24 @@ public class GiftPairingServiceTest {
 		giftingPairService.addMember(family.getFamilyId(), new Person("Judy Moody"));
 		Map<Person, Person> pairs = giftingPairService.getGiftingPairs(family.getFamilyId());
 		assertEquals(family.getMembers().size(), pairs.size());
+		checkSelfPairing(pairs);
 	}
+	
+	private void checkSelfPairing(Map<Person, Person> pairs) {
+        Optional<Map.Entry<Person, Person>> selfMatchedMember = pairs.entrySet().stream()
+                .filter(member -> member.getKey().equals(member.getValue()))
+                .findFirst();
+        assertFalse(selfMatchedMember.isPresent());
+    }
+	
+	@Test
+	public void testGetGiftingMembers() {
+		family = giftingPairService.getFamilies().iterator().next();
+		Map<String, List<String>> giftingMembers = giftingPairService.getGiftingPairsWithinImmediateFamily(family.getFamilyId());
+		assertEquals(family.getMembers().size(), giftingMembers.size());
+		family.getMembers().forEach(m -> {assertTrue(m.isAssigned());});
+		
+	}
+	
+	
 }

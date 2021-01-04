@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.giftpairing.model.Family;
@@ -47,8 +48,11 @@ public class GiftPairingController {
 		return service.getGiftingPairs(familyId);
 	}
 	
-	
-	
-	
-	
+	@RequestMapping("/giftingfamilies/{familyId}/giftingmembers")
+	public Map<String, List<String>> getGiftingDonorRecipients(@PathVariable UUID familyId, @RequestParam(defaultValue = "true")  boolean reset) {
+		
+		Map<String, List<String>> matches = service.getGiftingPairsWithinImmediateFamily(familyId);
+		if (reset) service.resetAssignment(familyId);
+		return matches;
+	}
 }
